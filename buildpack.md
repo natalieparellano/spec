@@ -187,15 +187,15 @@ Executable: `<layers>/<layer>/exec.d/<process>/<executable>`, Working Dir: `<app
 
 Using the [Layer Content Metadata](#layer-content-metadata-toml) provided by a buildpack in a `<layers>/<layer>.toml` file, the lifecycle MUST determine:
 
-- Whether the layer directory in `<layers>/<layer>/` should be available to the app (via the `launch` boolean).
-- Whether the layer directory in `<layers>/<layer>/` should be available to subsequent buildpacks (via the `build` boolean).
-- Whether and how the layer directory in `<layers>/<layer>/` should be persisted to subsequent builds of the same OCI image (via the `cache` boolean).
+- Whether the layer directory in `<layers>/<layer>/` should be available to the app (via the `types.launch` boolean).
+- Whether the layer directory in `<layers>/<layer>/` should be available to subsequent buildpacks (via the `types.build` boolean).
+- Whether and how the layer directory in `<layers>/<layer>/` should be persisted to subsequent builds of the same OCI image (via the `types.cache` boolean).
 
-All combinations of `launch`, `build`, and `cache` booleans are valid. When a layer declares more than one type (e.g. `launch = true` and `cache = true`), the requirements of each type apply.
+All combinations of `types.launch`, `types.build`, and `types.cache` booleans are valid. When a layer declares more than one type (e.g. `types.launch = true` and `types.cache = true`), the requirements of each type apply.
 
 #### Launch Layers
 
-A buildpack MAY specify that a `<layers>/<layer>/` directory is a launch layer by placing `launch = true` in `<layers>/<layer>.toml`.
+A buildpack MAY specify that a `<layers>/<layer>/` directory is a launch layer by placing `types.launch = true` in `<layers>/<layer>.toml`.
 
 The lifecycle MUST make all launch layers accessible to the app as described in the [Environment](#environment) section.
 
@@ -203,31 +203,31 @@ The lifecycle MUST include each launch layer in the built OCI image.
 The lifecycle MUST also store the Layer Content Metadata associated with each layer so that it can be recovered using the layer Diff ID.
 
 Before a given re-build:
-- If a launch layer is marked `cache = false` and `build = false`, the lifecycle:
+- If a launch layer is marked `types.cache = false` and `types.build = false`, the lifecycle:
   - MUST restore the entire `<layers>/<layer>.toml` file from the previous build to the same path and
   - MUST NOT restore the corresponding `<layers>/<layer>/` directory from any previous build.
 
 After a given re-build:
-- If a buildpack keeps `launch = true` in `<layers>/<layer>.toml` and leaves no `<layers>/<layer>/` directory, the lifecycle:
+- If a buildpack keeps `types.launch = true` in `<layers>/<layer>.toml` and leaves no `<layers>/<layer>/` directory, the lifecycle:
   - MUST reuse the corresponding layer from the previous build in the OCI image and
   - MUST replace the Layer Content Metadata in the OCI image with the version present after the re-build.
-- If a buildpack keeps `launch = true` in `<layers>/<layer>.toml` and leaves a `<layers>/<layer>/` directory, the lifecycle:
+- If a buildpack keeps `types.launch = true` in `<layers>/<layer>.toml` and leaves a `<layers>/<layer>/` directory, the lifecycle:
   - MUST replace the corresponding layer in the OCI image with the directory contents present after the re-build and
   - MUST replace the Layer Content Metadata in the OCI image with the version present after the re-build.
-- If a buildpack removes `launch = true` from `<layers>/<layer>.toml` or deletes `<layers>/<layer>.toml`, then the lifecycle MUST NOT include any corresponding layer in the OCI image.
+- If a buildpack removes `types.launch = true` from `<layers>/<layer>.toml` or deletes `<layers>/<layer>.toml`, then the lifecycle MUST NOT include any corresponding layer in the OCI image.
 
 #### Build Layers
 
-A buildpack MAY specify that a `<layers>/<layer>/` directory is a build layer by placing `build = true` in `<layers>/<layer>.toml`.
+A buildpack MAY specify that a `<layers>/<layer>/` directory is a build layer by placing `types.build = true` in `<layers>/<layer>.toml`.
 
 The lifecycle MUST make all build layers accessible to subsequent buildpacks as described in the [Environment](#environment) section.
 
 Before the next re-build:
-- If the layer is marked `cache = false`, the lifecycle MUST NOT restore the `<layers>/<layer>/` directory or the `<layers>/<layer>.toml` file from any previous build.
+- If the layer is marked `types.cache = false`, the lifecycle MUST NOT restore the `<layers>/<layer>/` directory or the `<layers>/<layer>.toml` file from any previous build.
 
 #### Cached Layers
 
-A buildpack MAY specify that a `<layers>/<layer>/` directory is a cached layer by placing `cache = true` in `<layers>/<layer>.toml`.
+A buildpack MAY specify that a `<layers>/<layer>/` directory is a cached layer by placing `types.cache = true` in `<layers>/<layer>.toml`.
 
 If a cache is provided the lifecycle:
 - SHOULD store all cached layers after a successful build.
@@ -241,14 +241,14 @@ Before the next re-build:
 #### Other Layers
 
 The lifecycle:
-- If `build = false`
+- If `types.build = false`
   - MUST NOT make the layer available to subesequent buildpacks.
-- If `launch = false`
+- If `types.launch = false`
   - MUST NOT include the layer or the Layer Content Metadata in the OCI image.
-- If `cache = false`
+- If `types.cache = false`
   - MUST NOT store the layer or the Layer Content Metadata in the cache.
 
-Layers marked `launch = false`, `build = false`, and `cache = false` behave like temporary directories, available only to the authoring buildpack, that exist for the duration of a single build.
+Layers marked `types.launch = false`, `types.build = false`, and `types.cache = false` behave like temporary directories, available only to the authoring buildpack, that exist for the duration of a single build.
 
 ## App Interface
 
@@ -403,9 +403,9 @@ The lifecycle MUST skip analysis and proceed to the build phase if no such image
 
 For each buildpack in the group,
 
-1. All `<layers>/<layer>.toml` files with `cache = true` and corresponding `<layers>/<layer>` directories from any previous build are restored to their same filesystem locations.
-2. Each `<layers>/<layer>.toml` file with `launch = true` and `cache = false` that was present at the end of the build of the previously created OCI image is retrieved.
-3. A given `<layers>/<layer>.toml` file with `launch = true` and `cache = true` and corresponding  `<layers>/<layer>` directory are both removed if either do not match their contents in the previously created OCI image.
+1. All `<layers>/<layer>.toml` files with `types.cache = true` and corresponding `<layers>/<layer>` directories from any previous build are restored to their same filesystem locations.
+2. Each `<layers>/<layer>.toml` file with `types.launch = true` and `types.cache = false` that was present at the end of the build of the previously created OCI image is retrieved.
+3. A given `<layers>/<layer>.toml` file with `types.launch = true` and `types.cache = true` and corresponding  `<layers>/<layer>` directory are both removed if either do not match their contents in the previously created OCI image.
 
 Finally, the contents of `<layers>/store.toml` from the build of the previously created OCI image are restored.
 
@@ -545,7 +545,7 @@ The purpose of export is to create a new OCI image using a combination of remote
 **If** the run image, old OCI image, and new OCI image are not all present in the same image store, \
 **Then** the lifecycle SHOULD fail the export process or inform the user that export performance is degraded.
 
-For each `<layers>/<layer>.toml` file that specifies `launch = true`,
+For each `<layers>/<layer>.toml` file that specifies `types.launch = true`,
 
 1. **If** a corresponding `<layers>/<layer>` directory is present locally, \
    **Then** the lifecycle MUST
@@ -582,8 +582,8 @@ Subsequently,
    - The executable component of the lifecycle that implements the launch phase, and
    - An `ENTRYPOINT` set to that component.
 
-Finally, any `<layers>/<layer>` directories specified as `cache = true` in `<layers>/<layer>.toml` MAY be preserved for the next local build.
-For any `<layers>/<layer>.toml` files specifying both `cache = true` and `launch = true`, the lifecycle SHOULD store a checksum of the corresponding `<layers>/<layer>` directory so that it is associated with the locally cached directory.
+Finally, any `<layers>/<layer>` directories specified as `types.cache = true` in `<layers>/<layer>.toml` MAY be preserved for the next local build.
+For any `<layers>/<layer>.toml` files specifying both `types.cache = true` and `types.launch = true`, the lifecycle SHOULD store a checksum of the corresponding `<layers>/<layer>` directory so that it is associated with the locally cached directory.
 This allows the analysis phase to efficiently compare the locally cached layer with the corresponding old OCI image layer before the next build.
 
 ## Launch
@@ -942,6 +942,7 @@ name = "<dependency name>"
 ### Layer Content Metadata (TOML)
 
 ```toml
+[types]
 launch = false
 build = false
 cache = false
